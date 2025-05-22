@@ -2,73 +2,97 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
-  <!-- Підтримка вирізів та масштабування -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <!-- PWA для iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Введення даних та відображення</title>
   <style>
     :root {
-      /* --vh = 1% висоти вікна браузера */
       --vh: 1vh;
     }
     body, html {
-      margin: 0; padding: 0;
-      /* padding безпечної зони під виріз */
+      margin: 0;
+      padding: 0;
+      height: calc(var(--vh, 1vh) * 100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: sans-serif;
+      background-color: #282c34;
+      color: #d1d1d1;
+      overflow: hidden;
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
-      height: calc(var(--vh) * 100);
-      font-family: sans-serif;
-      background-color: #282c34;
-      color: #d1d1d1;
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden;
+      -webkit-text-size-adjust: none;
+      text-size-adjust: none;
     }
+
     .form-container {
-      display: flex; flex-direction: column; align-items: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       margin-bottom: 20px;
-      width: 90%; max-width: 400px;
     }
-    .form-container input, .form-container button {
-      width: 100%;
-      margin: 5px 0; padding: 12px;
-      font-size: 17px; border-radius: 8px;
+    .form-container input {
+      margin: 5px;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 6px;
       border: none;
-    }
-    .form-container button {
-      background: #6c63ff; color: white;
-      font-weight: bold;
     }
     .image-container {
       display: none;
       position: relative;
-      width: 100%; height: calc(var(--vh) * 100);
+      width: 100vw;
+      height: calc(var(--vh, 1vh) * 100);
       background-color: #4a4a4a;
+      overflow: hidden;
     }
     .image-container img {
-      width: 100%; height: 100%; object-fit: cover;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .overlay-text {
       position: absolute;
+      font-size: 24px;
+      font-weight: normal;
       color: #fffc;
-      font-weight: 300;
-      /* шрифт і масштаб під iOS */
       -webkit-text-size-adjust: none;
     }
-    /* Позиції тексту */
-    #number { top: 50.21%; left: 53%; transform: translate(-50%); font-size: 19.2px; }
-    #date, #time, #passengers {
-      top: 60.6%; font-size: 15.2px; transform: translateX(-50%);
+    #number {
+      top: 50.21%;
+      left: 53%;
+      transform: translateX(-50%);
+      font-size: 19.2px;
     }
-    #date { left: 23.5%; }
-    #time { left: 50%; }
-    #passengers { left: 76.5%; }
+    #date {
+      top: 60.6%;
+      left: 23.5%;
+      transform: translateX(-50%);
+      font-size: 15.2px;
+    }
+    #time {
+      top: 60.6%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 15.2px;
+    }
+    #passengers {
+      top: 60.6%;
+      left: 76.5%;
+      transform: translateX(-50%);
+      font-size: 15.2px;
+    }
     #timer {
-      top: 68.5%; left: 50%; transform: translate(-50%);
-      font-size: 20px; font-weight: bold; color: #6c3;
+      top: 68.5%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      font-weight: bold;
+      color: #6c3;
     }
   </style>
 </head>
@@ -78,12 +102,12 @@
     <input type="text" id="inputDate" placeholder="Введіть дату">
     <input type="text" id="inputTime" placeholder="Введіть час">
     <input type="text" id="inputPassengers" placeholder="Введіть кількість пасажирів">
-    <input type="number" id="inputTimer" placeholder="Час таймера (сек)">
+    <input type="number" id="inputTimer" placeholder="Введіть час для таймера (секунди)">
     <button onclick="updateText()">Оновити</button>
   </div>
 
-  <div class="image-container" id="imageContainer" ondblclick="enterFullScreen()">
-    <img src="https://i.imgur.com/VQAJ1g2.jpeg" alt="Background">
+  <div class="image-container" id="imageContainer" ondblclick="enterFullScreen(document.getElementById('imageContainer'));">
+    <img src="https://i.imgur.com/VQAJ1g2.jpeg" alt="Background Image">
     <div id="number" class="overlay-text"></div>
     <div id="date" class="overlay-text"></div>
     <div id="time" class="overlay-text"></div>
@@ -92,57 +116,80 @@
   </div>
 
   <script>
-    // Встановлення --vh
+    // Фікс для iPhone: правильна висота екрану
     function setVh() {
       document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');
     }
     window.addEventListener('resize', setVh);
-    setVh();
+    window.addEventListener('load', setVh);
 
-    let countdown, endTime;
+    let countdown;
+    let startTime;
+    let endTime;
 
     function updateText() {
-      const now = new Date();
-      const dateValue = document.getElementById('inputDate').value || formatDate(now);
-      const timeValue = document.getElementById('inputTime').value || formatTime(now);
+      const currentDate = new Date();
+      const dateValue = document.getElementById('inputDate').value || formatDate(currentDate);
+      const timeValue = document.getElementById('inputTime').value || formatTimeWithSeconds(currentDate);
+
       document.getElementById('number').textContent = document.getElementById('inputNumber').value;
       document.getElementById('date').textContent = dateValue;
       document.getElementById('time').textContent = timeValue;
-      document.getElementById('passengers').textContent = document.getElementById('inputPassengers').value || '1';
 
-      const duration = parseInt(document.getElementById('inputTimer').value) || 3600;
-      endTime = Date.now() + duration * 1000;
-      document.getElementById('timer').textContent = formatTimer(duration);
+      const passengersValue = document.getElementById('inputPassengers').value || '1';
+      document.getElementById('passengers').textContent = passengersValue;
+
+      const timerDuration = parseInt(document.getElementById('inputTimer').value) || 3600;
+
+      startTime = Date.now();
+      endTime = startTime + timerDuration * 1000;
+
+      document.getElementById('timer').textContent = formatTimerDisplay(timerDuration);
 
       document.getElementById('formContainer').style.display = 'none';
-      document.getElementById('imageContainer').style.display = 'block';
-      enterFullScreen();
+      document.getElementById('imageContainer').style.display = 'flex';
 
-      clearInterval(countdown);
-      countdown = setInterval(() => {
-        const secsLeft = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
-        document.getElementById('timer').textContent =
-          secsLeft > 0 ? formatTimer(secsLeft) : 'Час вийшов!';
-        if (secsLeft <= 0) clearInterval(countdown);
-      }, 1000);
+      enterFullScreen(document.getElementById('imageContainer'));
+
+      countdown = setInterval(updateTimer, 1000);
     }
 
-    function enterFullScreen() {
-      const el = document.getElementById('imageContainer');
-      if (el.requestFullscreen) el.requestFullscreen();
+    function updateTimer() {
+      const currentTime = Date.now();
+      const timeLeft = Math.max(0, Math.floor((endTime - currentTime) / 1000));
+
+      if (timeLeft <= 0) {
+        clearInterval(countdown);
+        document.getElementById('timer').textContent = "Час вийшов!";
+      } else {
+        document.getElementById('timer').textContent = formatTimerDisplay(timeLeft);
+      }
     }
 
-    function formatDate(d) {
-      return [d.getDate(), d.getMonth() + 1, d.getFullYear()]
-        .map(x => String(x).padStart(2, '0')).join('.');
+    function enterFullScreen(element) {
+      const el = element;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (req) req.call(el);
     }
-    function formatTime(d) {
-      return [d.getHours(), d.getMinutes(), d.getSeconds()]
-        .map(x => String(x).padStart(2, '0')).join(':');
+
+    function formatDate(date) {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
     }
-    function formatTimer(s) {
-      const m = Math.floor(s / 60), secs = s % 60;
-      return `${m}:${secs < 10 ? '0' : ''}${secs}`;
+
+    function formatTimeWithSeconds(date) {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function formatTimerDisplay(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
     }
   </script>
 </body>
